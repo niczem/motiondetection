@@ -7,11 +7,14 @@ __author__ = 'Will Brennan'
 import os
 import logging
 import argparse
+import json
 # Standard Modules
 import cv2
 import numpy
 # Custom Modules
-import Scripts
+import Scripts                
+import uuid
+
 
 logger = logging.getLogger('main')
 
@@ -27,6 +30,7 @@ def get_args(args_string=None):
     parser.add_argument('-d', '--display', dest='display', action='store_true', help='display visual interface')
     parser.add_argument('-e', '--debug', dest='debug', action='store_true', help='set logger to debug')
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', help='silence the logger')
+    parser.add_argument('-j', '--jsonfile', dest='jsonfile', help='append results data to json file')
     if isinstance(args_string, str):
         args_string = [arg for arg in args_string.split(' ') if arg != ""]
         args = parser.parse_args(args_string)
@@ -39,6 +43,18 @@ def frame_diff(img_vold, img_old, new_img):
     img_diff0 = cv2.absdiff(new_img, img_old)
     img_diff1 = cv2.absdiff(img_old, img_vold)
     return cv2.bitwise_or(img_diff0, img_diff1)
+
+def logtojson(filename, data):
+    file_data = {}
+    file_data['data'] = []
+    if os.path.isfile(filename):
+        with open(filename) as json_file:
+            file_data = json.load(json_file)
+    file_data['data'].append(data)
+    logger.info(file_data)
+
+    with open(filename, 'w') as outfile:
+        json.dump(file_data, outfile)    
 
 if __name__ == '__main__':
     args = get_args()
@@ -69,6 +85,18 @@ if __name__ == '__main__':
                 data_var = numpy.abs(val-data_avg)/data_std
                 logger.debug('data_avg: {0}, data_std: {1}, data_var: {2}, value: {3}'.format(data_avg, data_std, data_var, val))
                 critical = (data_var > args.offset) and (frame_id > args.n_min)
+
+                unique_filename = str(uuid.uuid4())
+                img_path = '{0}_{1}_inputFrame.png'.format(unique_filename,frame_id)
+                dif_path = '{0}_{1}_diffFrame.png'.format(unique_filename,frame_id)
+
+
+                resultdata = {}
+                resultdata['first_frame'] = frame_id
+                resultdata['frame_file'] = img_path
+                resultdata['dif_file'] = dif_path
+                resultdata['video_file'] = args.video_path
+                        
                 if args.display:
                     msg0 = "avg: {0}, std: {0}, var: {1}".format(data_avg, data_std, data_var)
                     msg1 = "critical image: {0}".format(critical)
@@ -78,13 +106,12 @@ if __name__ == '__main__':
                     triggered = True
                     logger.info('Significant Motion Detected on Frame {0}!'.format(frame_id))
                     if args.dump_images:
-                        img_path = '{0}_inputFrame.png'.format(frame_id)
-                        dif_path = '{0}_diffFrame.png'.format(frame_id)
                         if args.dump_path:
                             img_path = os.path.join(args.dump_path, img_path)
                             dif_path = os.path.join(args.dump_path, dif_path)
                         logger.debug('saving inputFrame to {0}'.format(img_path))
                         logger.debug('saving diffFrame to {0}'.format(dif_path))
+
                         cv2.imwrite(img_path, frame)
                         assert os.path.exists(img_path), 'inputFrame did not save correctly'
                         cv2.imwrite(dif_path, diff)
@@ -92,6 +119,10 @@ if __name__ == '__main__':
                     #cv2.waitKey(0)
                 elif not critical and triggered:
                     logger.info('event has stopped occurring')
+                    if args.jsonfile:
+                        logger.info('add event to results file')
+                        logger.info(resultdata)
+                        logtojson(args.jsonfile,resultdata)
                     triggered = False
                 else:
                     logger.debug('nothing to report')
