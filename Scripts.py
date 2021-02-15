@@ -71,7 +71,6 @@ def resize(frame, max_size=2000000, full_screen=False):
         logger.debug("Screen Size - {0}px x {1}px".format(w, h))
         ratio_w = w/frame.shape[1]
         ratio_h = h/frame.shape[0]
-        print ratio_h, ratio_w
         logger.debug("Frame Size: {0}".format(frame.shape[:2]))
         logger.debug("Resize Ratios - {0} and {1}".format(ratio_w, ratio_h))
         scale = min(0.8*ratio_w, 0.8*ratio_h, 1)
