@@ -64,13 +64,34 @@ if __name__ == '__main__':
     assert os.path.exists(args.video_path), '{0} is not a valid path'.format(args.video_path)
     logger.info('loading video from {0}'.format(args.video_path))
     cam = cv2.VideoCapture(args.video_path)
+
+    # Find OpenCV version
+    (major_ver, minor_ver, subminor_ver) = (cv2.__version__).split('.')
+
+    # With webcam get(CV_CAP_PROP_FPS) does not work.
+    # Let's see for ourselves.
+
+    if int(major_ver)  < 3 :
+        fps = cam.get(cv2.cv.CV_CAP_PROP_FPS)
+        logger.info("Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps))
+    else :
+        fps = cam.get(cv2.CAP_PROP_FPS)
+        logger.info("Frames per second using video.get(cv2.CAP_PROP_FPS) : {0}".format(fps))
+
+
+    logger.info(2133)
+    logger.info(round(fps))
+
     data = numpy.array([], dtype=numpy.float)
     frames = []
     frame_id = 0
     triggered = False
+    resultdata = {}
     while True:
+
         ret, frame = cam.read()
         if ret:
+
             frame_id += 1
             logger.debug('processing {0} frame'.format(frame_id))
             logger.debug('frames total: {0}'.format(len(frames)))
@@ -91,12 +112,14 @@ if __name__ == '__main__':
                 dif_path = '{0}_{1}_diffFrame.png'.format(unique_filename,frame_id)
 
 
-                resultdata = {}
-                resultdata['first_frame'] = frame_id
+
                 resultdata['frame_file'] = img_path
                 resultdata['dif_file'] = dif_path
-                resultdata['video_file'] = args.video_path
-                        
+
+                resultdata['last_frame'] = frame_id
+                resultdata['stop_time'] = round(frame_id*fps,2)
+
+
                 if args.display:
                     msg0 = "avg: {0}, std: {0}, var: {1}".format(data_avg, data_std, data_var)
                     msg1 = "critical image: {0}".format(critical)
@@ -105,13 +128,18 @@ if __name__ == '__main__':
                 if critical and not triggered:
                     triggered = True
                     logger.info('Significant Motion Detected on Frame {0}!'.format(frame_id))
+
+                    resultdata['first_frame'] = frame_id
+                    resultdata['start_time'] = round(frame_id*fps,2)
+                    resultdata['video_file'] = args.video_path
+
                     if args.dump_images:
                         if args.dump_path:
                             img_path = os.path.join(args.dump_path, img_path)
                             dif_path = os.path.join(args.dump_path, dif_path)
                         logger.debug('saving inputFrame to {0}'.format(img_path))
                         logger.debug('saving diffFrame to {0}'.format(dif_path))
-
+                        
                         cv2.imwrite(img_path, frame)
                         assert os.path.exists(img_path), 'inputFrame did not save correctly'
                         cv2.imwrite(dif_path, diff)
@@ -119,11 +147,14 @@ if __name__ == '__main__':
                     #cv2.waitKey(0)
                 elif not critical and triggered:
                     logger.info('event has stopped occurring')
+                    logger.info(frame_id)
                     if args.jsonfile:
                         logger.info('add event to results file')
                         logger.info(resultdata)
                         logtojson(args.jsonfile,resultdata)
                     triggered = False
+
+                    resultdata = {}
                 else:
                     logger.debug('nothing to report')
                 if args.display:
