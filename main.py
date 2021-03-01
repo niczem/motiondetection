@@ -51,7 +51,6 @@ def logtojson(filename, data):
         with open(filename) as json_file:
             file_data = json.load(json_file)
     file_data['data'].append(data)
-    logger.info(file_data)
 
     with open(filename, 'w') as outfile:
         json.dump(file_data, outfile)    
@@ -78,9 +77,6 @@ if __name__ == '__main__':
         fps = cam.get(cv2.CAP_PROP_FPS)
         logger.info("Frames per second using video.get(cv2.CAP_PROP_FPS) : {0}".format(fps))
 
-
-    logger.info(2133)
-    logger.info(round(fps))
 
     data = numpy.array([], dtype=numpy.float)
     frames = []
@@ -117,7 +113,7 @@ if __name__ == '__main__':
                 resultdata['dif_file'] = dif_path
 
                 resultdata['last_frame'] = frame_id
-                resultdata['stop_time'] = round(frame_id*fps,2)
+                resultdata['stop_time'] = round(frame_id/fps,2)
 
 
                 if args.display:
@@ -130,7 +126,7 @@ if __name__ == '__main__':
                     logger.info('Significant Motion Detected on Frame {0}!'.format(frame_id))
 
                     resultdata['first_frame'] = frame_id
-                    resultdata['start_time'] = round(frame_id*fps,2)
+                    resultdata['start_time'] = round(frame_id/fps,2)
                     resultdata['video_file'] = args.video_path
 
                     if args.dump_images:
@@ -150,7 +146,6 @@ if __name__ == '__main__':
                     logger.info(frame_id)
                     if args.jsonfile:
                         logger.info('add event to results file')
-                        logger.info(resultdata)
                         logtojson(args.jsonfile,resultdata)
                     triggered = False
 
